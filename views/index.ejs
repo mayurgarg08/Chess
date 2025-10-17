@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title><%= title || "Chess Game" %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 50%,
+          #0f3460 100%
+        );
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+
+      .game-container {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        max-width: 1400px;
+      }
+
+      .board-section {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .player-side {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-width: 200px;
+      }
+
+      .player-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1rem;
+        transition: all 0.3s ease;
+      }
+
+      .player-card.active {
+        border-color: rgba(34, 197, 94, 0.6);
+        background: rgba(34, 197, 94, 0.1);
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+      }
+
+      .chessboard {
+        display: grid;
+        grid-template-columns: repeat(8, 70px);
+        grid-template-rows: repeat(8, 70px);
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        position: relative;
+      }
+
+      .square {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        position: relative;
+        transition: all 0.2s ease;
+      }
+
+      .square.light {
+        background: #f0d9b5;
+      }
+      .square.dark {
+        background: #b58863;
+      }
+
+      .square.drag-over {
+        box-shadow: inset 0 0 0 3px rgba(34, 197, 94, 0.6);
+        background-color: rgba(34, 197, 94, 0.2) !important;
+      }
+
+      .square.selected {
+        box-shadow: inset 0 0 0 3px rgba(59, 130, 246, 0.6);
+      }
+
+      .piece {
+        font-size: 48px;
+        line-height: 1;
+        cursor: grab;
+        transition: transform 0.1s ease, opacity 0.2s ease;
+        user-select: none;
+      }
+
+      .piece.dragging {
+        opacity: 0.5;
+        cursor: grabbing;
+      }
+
+      .piece:hover {
+        transform: scale(1.08);
+      }
+
+      .flipped {
+        transform: rotate(180deg);
+      }
+
+      .flipped .piece {
+        transform: rotate(180deg);
+      }
+
+      .flipped .piece:hover {
+        transform: rotate(180deg) scale(1.08);
+      }
+
+      .flipped .piece.dragging {
+        transform: rotate(180deg);
+        opacity: 0.5;
+      }
+
+      .timer {
+        font-size: 2rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: #fff;
+      }
+
+      .timer.warning {
+        color: #ef4444;
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .captured-pieces {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        min-height: 30px;
+        margin-top: 0.5rem;
+      }
+
+      .captured-piece {
+        font-size: 22px;
+        color: white;
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+      }
+
+      .right-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        width: 320px;
+      }
+
+      .status-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .status-text {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.5rem;
+      }
+
+      .status-subtext {
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .countdown {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #10b981;
+        text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+        animation: countdownPulse 1s ease-in-out infinite;
+      }
+
+      @keyframes countdownPulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      .move-history {
+        background: rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1rem;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .move-history::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .move-history::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+      }
+
+      .move-history::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+      }
+
+      .move-row {
+        padding: 0.5rem;
+        border-radius: 6px;
+        margin-bottom: 0.25rem;
+        font-size: 0.875rem;
+        color: #e2e8f0;
+      }
+
+      .move-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .btn-new-game {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        font-weight: 600;
+        padding: 0.875rem;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      }
+
+      .btn-new-game:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+      }
+
+      .btn-new-game:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .game-title {
+        position: absolute;
+        top: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 2rem;
+        font-weight: 800;
+        color: #fff;
+        text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      .notification {
+        position: fixed;
+        top: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(239, 68, 68, 0.95);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        animation: slideDown 0.3s ease;
+        display: none;
+      }
+
+      .notification.show {
+        display: block;
+      }
+
+      .notification.success {
+        background: rgba(16, 185, 129, 0.95);
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+
+      @media (max-width: 1200px) {
+        .game-container {
+          flex-direction: column;
+        }
+        .board-section {
+          flex-direction: column;
+        }
+        .player-side {
+          flex-direction: row;
+          min-width: auto;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1 class="game-title">♟️ Chess Master</h1>
+
+    <div id="notification" class="notification"></div>
+
+    <div class="game-container">
+      <!-- LEFT PLAYER CARD -->
+      <div class="player-side">
+        <div id="leftCard" class="player-card">
+          <div class="text-white text-sm font-medium mb-2" id="leftPlayerName">
+            Black Player
+          </div>
+          <div id="leftTimer" class="timer">10:00</div>
+          <div id="leftCaptured" class="captured-pieces"></div>
+        </div>
+      </div>
+
+      <!-- CHESSBOARD -->
+      <div class="board-section">
+        <div id="chessboard" class="chessboard"></div>
+      </div>
+
+      <!-- RIGHT PLAYER CARD -->
+      <div class="player-side">
+        <div id="rightCard" class="player-card">
+          <div class="text-white text-sm font-medium mb-2" id="rightPlayerName">
+            White Player
+          </div>
+          <div id="rightTimer" class="timer">10:00</div>
+          <div id="rightCaptured" class="captured-pieces"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="right-panel">
+        <!-- STATUS -->
+        <div class="status-card">
+          <div id="countdownDisplay" style="display: none">
+            <div class="status-text">Game starting in</div>
+            <div id="countdownNumber" class="countdown">3</div>
+          </div>
+          <div id="statusDisplay">
+            <div id="statusText" class="status-text">
+              Waiting for players...
+            </div>
+            <div id="roleText" class="status-subtext">Role: Spectator</div>
+          </div>
+        </div>
+
+        <!-- NEW GAME BUTTON -->
+        <button id="resetBtn" class="btn-new-game" disabled>♻️ New Game</button>
+
+        <!-- MOVE HISTORY -->
+        <div class="move-history">
+          <div
+            class="text-white font-bold text-sm mb-3 flex items-center justify-between"
+          >
+            <span>📜 Move History</span>
+            <span id="moveCount" class="text-xs text-gray-400">0 moves</span>
+          </div>
+          <div id="moveHistory"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="/js/chessgame.js"></script>
+  </body>
+</html>
